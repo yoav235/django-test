@@ -34,4 +34,10 @@ class Book(models.Model):
         return self.title
 
 
+class UserProfile(models.Model):
+    """Extending Django's User Model to store favorite books"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    favorite_books = models.ManyToManyField(Book, related_name="favorited_by", blank=True)
 
+    def __str__(self):
+        return self.user.username

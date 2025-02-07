@@ -37,8 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'library',  # הוספת האפליקציה החדשה
-    'rest_framework',  # נדרש עבור Django REST Framework
+    'library',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -49,6 +49,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'library.middleware.JWTAuthenticationMiddleware',
+    # 'django.middleware.auth.AuthenticationMiddleware',
 ]
 
 ROOT_URLCONF = 'Book_Managemen_System.urls'

@@ -7,15 +7,18 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.db.models import Q
-from .models import Book, Author
+from .models import Book, Author, UserProfile
 from .serializers import BookSerializer, AuthorSerializer
 import jwt
 import datetime
 from django.conf import settings
+from django.contrib.auth import authenticate
+from django.contrib.auth.decorators import login_required
 
 
 # JWT Helpers
 def generate_jwt(user):
+    """Generate JWT token for user authentication"""
     payload = {
         "id": user.id,
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24),
@@ -56,8 +59,9 @@ class RegisterView(View):
         data = json.loads(request.body)
         username = data.get("username")
         password = data.get("password")
+
         if not username or not password:
-            return JsonResponse({"error": "Missing fields"}, status=400)
+            return JsonResponse({"error": "Username and password required"}, status=400)
 
         if User.objects.filter(username=username).exists():
             return JsonResponse({"error": "Username already exists"}, status=400)
@@ -72,9 +76,9 @@ class LoginView(View):
         data = json.loads(request.body)
         username = data.get("username")
         password = data.get("password")
-        user = User.objects.filter(username=username).first()
 
-        if not user or not user.check_password(password):
+        user = authenticate(username=username, password=password)
+        if not user:
             return JsonResponse({"error": "Invalid credentials"}, status=400)
 
         token = generate_jwt(user)
@@ -173,28 +177,30 @@ class AuthorDetailView(View):
         return JsonResponse({"message": "Author deleted"})
 
 
-# Favorite Books & Recommendations
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required, name='dispatch')
 class FavoriteBookView(View):
-    @method_decorator(jwt_required)
     def post(self, request):
+        """Add or remove a book from favorites & return recommendations"""
+        user = request.user  # Automatically set by middleware
         data = json.loads(request.body)
-        user = get_object_or_404(User, id=request.user_id)
         book = get_object_or_404(Book, id=data["book_id"])
 
-        if book in user.favorite_books.all():
-            user.favorite_books.remove(book)
+        user_profile, created = UserProfile.objects.get_or_create(user=user)
+
+        if book in user_profile.favorite_books.all():
+            user_profile.favorite_books.remove(book)
             return JsonResponse({"message": "Book removed from favorites"})
 
-        if user.favorite_books.count() >= 20:
+        if user_profile.favorite_books.count() >= 20:
             return JsonResponse({"error": "You can only have 20 favorite books"}, status=400)
 
-        user.favorite_books.add(book)
-        return JsonResponse({"message": "Book added to favorites", "recommendations": get_recommendations(user)})
+        user_profile.favorite_books.add(book)
+        recommendations = get_recommendations(user_profile)
+        return JsonResponse({"message": "Book added to favorites", "recommendations": recommendations})
 
-
-def get_recommendations(user):
-    favorite_books = user.favorite_books.all()
+def get_recommendations(user_profile):
+    """Returns 5 recommended books based on favorite books' genres."""
+    favorite_books = user_profile.favorite_books.all()
     genres = set()
 
     for book in favorite_books:
