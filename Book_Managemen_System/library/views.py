@@ -14,7 +14,13 @@ import datetime
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.decorators import login_required
+from django.middleware.csrf import get_token
 
+
+
+def csrf_token_view(request):
+    """Returns the CSRF token to the client"""
+    return JsonResponse({"csrfToken": get_token(request)})
 
 # JWT Helpers
 def generate_jwt(user):
